@@ -1,0 +1,169 @@
+--- a/build-common.sh	2019-10-30 03:19:05.000000000 +0000
++++ b/build-common.sh	2022-03-20 12:56:44.348754011 +0000
+@@ -197,7 +197,7 @@
+ }
+ 
+ # Copy target libraries from each multilib directories.
+-# Usage copy_multi_libs dst_prefix=... src_prefix=... target_gcc=...
++# Usage copy_multi_libs dst_prefix=... dst_suffix=... src_prefix=... target_gcc=...
+ copy_multi_libs() {
+     local -a multilibs
+     local multilib
+@@ -217,11 +217,11 @@
+         multi_dir="${multilib%%;*}"
+         src_dir=${src_prefix}/${multi_dir}
+         dst_dir=${dst_prefix}/${multi_dir}
+-        cp -f "${src_dir}/libstdc++.a" "${dst_dir}/libstdc++_nano.a"
+-        cp -f "${src_dir}/libsupc++.a" "${dst_dir}/libsupc++_nano.a"
+-        cp -f "${src_dir}/libc.a" "${dst_dir}/libc_nano.a"
+-        cp -f "${src_dir}/libg.a" "${dst_dir}/libg_nano.a"
+-        cp -f "${src_dir}/librdimon.a" "${dst_dir}/librdimon_nano.a"
++        cp -f "${src_dir}/libstdc++.a" "${dst_dir}/libstdc++${dst_suffix}.a"
++        cp -f "${src_dir}/libsupc++.a" "${dst_dir}/libsupc++${dst_suffix}.a"
++        cp -f "${src_dir}/libc.a" "${dst_dir}/libc${dst_suffix}.a"
++        cp -f "${src_dir}/libg.a" "${dst_dir}/libg${dst_suffix}.a"
++        cp -f "${src_dir}/librdimon.a" "${dst_dir}/librdimon${dst_suffix}.a"
+         cp -f "${src_dir}/nano.specs" "${dst_dir}/"
+         cp -f "${src_dir}/rdimon.specs" "${dst_dir}/"
+         cp -f "${src_dir}/nosys.specs" "${dst_dir}/"
+@@ -304,7 +304,7 @@
+     BUILD="$host_arch"-linux-gnu
+     HOST_NATIVE="$host_arch"-linux-gnu
+     READLINK=readlink
+-    JOBS=`grep ^processor /proc/cpuinfo|wc -l`
++    JOBS=$((`grep ^processor /proc/cpuinfo|wc -l` * 2))
+     GCC_CONFIG_OPTS_LCPP="--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm"
+     MD5="md5sum -b"
+     PACKAGE_NAME_SUFFIX="${host_arch}-linux"
+@@ -339,8 +339,15 @@
+     stack_level=0
+ 
+     RELEASEDATE=$(date +%Y%m%d)
+-    release_year=$(date +%Y)
+-    release_month=$(date +%m)
++    for ac_arg; do
++        case $ac_arg in
++            --release_date=*)
++                RELEASEDATE=$(echo $ac_arg | sed -e "s/--release_date=//g" -e "s/,/ /g")
++                ;;
++        esac
++    done
++    release_year=${RELEASEDATE:0:4}
++    release_month=${RELEASEDATE:4:2}
+     case $release_month in
+         01|02|03)
+             RELEASEVER=${release_year}-q1-update
+--- a/build-prerequisites.sh	2019-10-30 03:19:05.000000000 +0000
++++ b/build-prerequisites.sh	2022-03-20 12:56:08.431955008 +0000
+@@ -55,7 +55,6 @@
+   --skip_steps=STEPS    specify which build steps you want to skip.  Concatenate
+                         them with comma for skipping more than one steps.
+                         Available step is: mingw32.
+-
+ EOF
+ }
+ 
+@@ -71,6 +70,8 @@
+         --skip_steps=*)
+             skip_steps=`echo $ac_arg | sed -e "s/--skip_steps=//g" -e "s/,/ /g"`
+             ;;
++        --release_date=*)
++            ;;
+         --help|-h)
+             usage
+             exit 1
+--- a/build-toolchain.sh	2022-03-22 05:41:41.387734013 +0000
++++ b/build-toolchain.sh	2022-03-22 05:43:15.530192000 +0000
+@@ -90,6 +90,7 @@
+ skip_package_sources=no
+ skip_md5_checksum=no
+ skip_steps=
++release_date=
+ skip_gdb_with_python=no
+ skip_mingw32_gdb_with_python=no
+ build_type=
+@@ -104,6 +105,8 @@
+         --build_type=*)
+             build_type=$(echo $ac_arg | sed -e "s/--build_type=//g" -e "s/,/ /g")
+             ;;
++        --release_date=*)
++            ;;
+         *)
+             usage
+             exit 1
+@@ -485,6 +488,7 @@
+ 
+ copy_multi_libs src_prefix="$BUILDDIR_NATIVE/target-libs/arm-none-eabi/lib" \
+                 dst_prefix="$INSTALLDIR_NATIVE/arm-none-eabi/lib"           \
++                dst_suffix="_nano" \
+                 target_gcc="$BUILDDIR_NATIVE/target-libs/bin/arm-none-eabi-gcc"
+ 
+ # Copy the nano configured newlib.h file into the location that nano.specs
+@@ -495,6 +499,49 @@
+ 
+ popd
+ 
++echo Task [III-5.1] /$HOST_NATIVE/gcc-size-eh-libstdcxx/
++rm -f $BUILDDIR_NATIVE/target-libs/arm-none-eabi/usr
++ln -s . $BUILDDIR_NATIVE/target-libs/arm-none-eabi/usr
++
++rm -rf $BUILDDIR_NATIVE/gcc-size-eh-libstdcxx && mkdir -p $BUILDDIR_NATIVE/gcc-size-eh-libstdcxx
++pushd $BUILDDIR_NATIVE/gcc-size-eh-libstdcxx
++
++$SRCDIR/$GCC/configure --target=$TARGET \
++    --prefix=$BUILDDIR_NATIVE/target-libs \
++    --enable-languages=c,c++ \
++    --disable-decimal-float \
++    --disable-libffi \
++    --disable-libgomp \
++    --disable-libmudflap \
++    --disable-libquadmath \
++    --disable-libssp \
++    --disable-libstdcxx-pch \
++    --disable-libstdcxx-verbose \
++    --disable-nls \
++    --disable-shared \
++    --disable-threads \
++    --disable-tls \
++    --with-gnu-as \
++    --with-gnu-ld \
++    --with-newlib \
++    --with-headers=yes \
++    --with-python-dir=share/gcc-arm-none-eabi \
++    --with-sysroot=$BUILDDIR_NATIVE/target-libs/arm-none-eabi \
++    $GCC_CONFIG_OPTS \
++    "${GCC_CONFIG_OPTS_LCPP}"                              \
++    "--with-pkgversion=$PKGVERSION" \
++    ${MULTILIB_LIST}
++
++make -j$JOBS CCXXFLAGS="$BUILD_OPTIONS" CXXFLAGS_FOR_TARGET="-g -Os -ffunction-sections -fdata-sections"
++make install
++
++copy_multi_libs src_prefix="$BUILDDIR_NATIVE/target-libs/arm-none-eabi/lib" \
++                dst_prefix="$INSTALLDIR_NATIVE/arm-none-eabi/lib"           \
++                dst_suffix="_nano_eh" \
++                target_gcc="$BUILDDIR_NATIVE/target-libs/bin/arm-none-eabi-gcc"
++
++popd
++
+ echo Task [III-6] /$HOST_NATIVE/gdb/
+ build_gdb()
+ {
+@@ -963,7 +1010,7 @@
+     cp "$script_path/build-toolchain.sh" "$PACKAGE_NAME/"
+     cp "$script_path/python-config.sh" "$PACKAGE_NAME/"
+ 
+-    tar cf "$PACKAGE_NAME-src.tar.bz2" "$PACKAGE_NAME" ${TAR_FLAGS:-}
++    tar cf "$PACKAGE_NAME-src.tar" "$PACKAGE_NAME" ${TAR_FLAGS:-}
+     rm -rf "$PACKAGE_NAME"
+     popd
+ fi
+@@ -985,7 +1032,7 @@
+     fi
+ 
+     if [ "x$skip_package_sources" != "xyes" ]; then
+-        $MD5 "$PACKAGE_NAME-src.tar.bz2" >> "$MD5_CHECKSUM_FILE"
++        $MD5 "$PACKAGE_NAME-src.tar" >> "$MD5_CHECKSUM_FILE"
+     fi
+     popd
+ fi

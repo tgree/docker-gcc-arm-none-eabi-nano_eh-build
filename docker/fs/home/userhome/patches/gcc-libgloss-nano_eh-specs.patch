@@ -1,0 +1,36 @@
+--- a/src/newlib/libgloss/arm/Makefile.in
++++ b/src/newlib/libgloss/arm/Makefile.in
+@@ -62,7 +62,7 @@
+ @BUILD_CRT0_FALSE@CRT0		=
+ @BUILD_CRT0_FALSE@CRT0_INSTALL	=
+ 
+-NANO_SCRIPTS=nano.specs
++NANO_SCRIPTS=nano.specs nano_eh.specs
+ NANO_INSTALL=install-nano
+ 
+ LINUX_CRT0    = linux-crt0.o
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/src/newlib/libgloss/arm/elf-nano_eh.specs	2022-03-22 08:19:39.956481010 +0000
+@@ -0,0 +1,22 @@
++%rename link                nano_eh_link
++%rename link_gcc_c_sequence                nano_eh_link_gcc_c_sequence
++%rename cpp_unique_options		nano_eh_cpp_unique_options
++
++*cpp_unique_options:
++-isystem =/include/newlib-nano %(nano_eh_cpp_unique_options)
++
++*nano_eh_libc:
++-lc_nano_eh
++
++*nano_eh_libgloss:
++%{specs=rdimon.specs:-lrdimon_nano_eh} %{specs=nosys.specs:-lnosys}
++
++*link_gcc_c_sequence:
++%(nano_eh_link_gcc_c_sequence) --start-group %G %(nano_eh_libc) %(nano_eh_libgloss) --end-group
++
++*link:
++%(nano_eh_link) %:replace-outfile(-lc -lc_nano_eh) %:replace-outfile(-lg -lg_nano_eh) %:replace-outfile(-lrdimon -lrdimon_nano_eh) %:replace-outfile(-lstdc++ -lstdc++_nano_eh) %:replace-outfile(-lsupc++ -lsupc++_nano_eh)
++
++*lib:
++%{!shared:%{g*:-lg_nano_eh} %{!p:%{!pg:-lc_nano_eh}}%{p:-lc_p}%{pg:-lc_p}}
++
