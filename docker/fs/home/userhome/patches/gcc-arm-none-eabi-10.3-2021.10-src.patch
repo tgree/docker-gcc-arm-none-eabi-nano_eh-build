@@ -1,6 +1,6 @@
-diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-common.sh gcc-arm-none-eabi-9-2020-q2-update/build-common.sh
---- gcc-arm-none-eabi-9-2020-q2-update-orig/build-common.sh	2020-05-21 12:33:54.000000000 +0000
-+++ gcc-arm-none-eabi-9-2020-q2-update/build-common.sh	2022-03-27 10:45:05.477365001 +0000
+diff -ru gcc-arm-none-eabi-10.3-2021.10-orig/build-common.sh gcc-arm-none-eabi-10.3-2021.10/build-common.sh
+--- gcc-arm-none-eabi-10.3-2021.10-orig/build-common.sh	2021-10-18 03:12:29.000000000 +0000
++++ gcc-arm-none-eabi-10.3-2021.10/build-common.sh	2022-03-28 11:27:56.299582010 +0000
 @@ -199,7 +199,7 @@
  }
  
@@ -36,57 +36,24 @@ diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-common.sh gcc-arm-none-ea
      GCC_CONFIG_OPTS_LCPP="--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm"
      MD5="md5sum -b"
      PACKAGE_NAME_SUFFIX="${host_arch}-linux"
-@@ -338,8 +338,15 @@
+@@ -335,10 +335,9 @@
+ 
  SCRIPT=$(basename $0)
  
- RELEASEDATE=$(date +%Y%m%d)
+-RELEASEDATE=$(date +%Y%m%d)
 -release_year=$(date +%Y)
 -release_month=$(date +%m)
-+for ac_arg; do
-+    case $ac_arg in
-+        --release_date=*)
-+            RELEASEDATE=$(echo $ac_arg | sed -e "s/--release_date=//g" -e "s/,/ /g")
-+            ;;
-+    esac
-+done
-+release_year=${RELEASEDATE:0:4}
-+release_month=${RELEASEDATE:4:2}
- case $release_month in
-     01|02|03)
-         RELEASEVER=${release_year}-q1-update
-diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-prerequisites.sh gcc-arm-none-eabi-9-2020-q2-update/build-prerequisites.sh
---- gcc-arm-none-eabi-9-2020-q2-update-orig/build-prerequisites.sh	2020-05-21 12:33:54.000000000 +0000
-+++ gcc-arm-none-eabi-9-2020-q2-update/build-prerequisites.sh	2022-03-27 10:42:44.784945006 +0000
-@@ -77,6 +77,8 @@
-         --skip_steps=*)
-             skip_steps=`echo $ac_arg | sed -e "s/--skip_steps=//g" -e "s/,/ /g"`
-             ;;
-+        --release_date=*)
-+            ;;
-         --help|-h)
-             usage
-             exit 1
-diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-toolchain.sh gcc-arm-none-eabi-9-2020-q2-update/build-toolchain.sh
---- gcc-arm-none-eabi-9-2020-q2-update-orig/build-toolchain.sh	2020-05-21 12:33:54.000000000 +0000
-+++ gcc-arm-none-eabi-9-2020-q2-update/build-toolchain.sh	2022-03-27 10:49:38.471153002 +0000
-@@ -97,6 +97,7 @@
- skip_package_sources=no
- skip_md5_checksum=no
- skip_steps=
-+release_date=
- skip_gdb_with_python=no
- skip_mingw32_gdb_with_python=no
- skip_native_build=no
-@@ -116,6 +117,8 @@
-         --with-multilib-list=*)
-             MULTILIB_LIST="--with-multilib-list=${ac_arg##*=}"
-             ;;
-+        --release_date=*)
-+            ;;
-         *)
-             usage
-             exit 1
-@@ -509,6 +512,7 @@
+-RELEASEVER=${release_year}.${release_month}
++# Somehow they've magically built it and released it months apart.
++RELEASEDATE=20210824
++RELEASEVER=2021.10
+ 
+ 
+ # This is a build script, go on
+diff -ru gcc-arm-none-eabi-10.3-2021.10-orig/build-toolchain.sh gcc-arm-none-eabi-10.3-2021.10/build-toolchain.sh
+--- gcc-arm-none-eabi-10.3-2021.10-orig/build-toolchain.sh	2021-10-18 03:12:29.000000000 +0000
++++ gcc-arm-none-eabi-10.3-2021.10/build-toolchain.sh	2022-03-28 11:27:22.437312009 +0000
+@@ -509,6 +509,7 @@
  
      copy_multi_libs src_prefix="$BUILDDIR_NATIVE/target-libs/arm-none-eabi/lib" \
                      dst_prefix="$INSTALLDIR_NATIVE/arm-none-eabi/lib"           \
@@ -94,7 +61,7 @@ diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-toolchain.sh gcc-arm-none
                      target_gcc="$BUILDDIR_NATIVE/target-libs/bin/arm-none-eabi-gcc"
  
      # Copy the nano configured newlib.h file into the location that nano.specs
-@@ -519,6 +523,49 @@
+@@ -519,6 +520,49 @@
  
      popd
  
@@ -144,7 +111,7 @@ diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-toolchain.sh gcc-arm-none
      echo Task [III-6] /$HOST_NATIVE/gdb/ | tee -a "$BUILDDIR_NATIVE/.stage"
      build_gdb()
      {
-@@ -993,7 +1040,7 @@
+@@ -984,7 +1028,7 @@
          cp "$script_path/build.sh" "$PACKAGE_NAME/"
      fi
  
@@ -153,8 +120,8 @@ diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-toolchain.sh gcc-arm-none
      rm -rf "$PACKAGE_NAME"
      popd
  fi
-@@ -1011,7 +1058,7 @@
-     fi
+@@ -997,7 +1041,7 @@
+     $MD5 "$PACKAGE_NAME_NATIVE.tar.bz2" > "$MD5_CHECKSUM_FILE"
  
      if [ "x$skip_package_sources" != "xyes" ]; then
 -        $MD5 "$PACKAGE_NAME-src.tar.bz2" >> "$MD5_CHECKSUM_FILE"

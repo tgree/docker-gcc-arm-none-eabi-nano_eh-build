@@ -1,6 +1,6 @@
 # Copyright (c) 2022 by Terry Greeniaus.
-# Build with: docker build -t gcc-arm-none-eabi-9-2020-q2-update-nano_eh-build .
-# Run with  : docker run -ti gcc-arm-none-eabi-9-2020-q2-update-nano_eh-build
+# Build with: docker build -t gcc-arm-none-eabi-10.3-2021.10-nano_eh-build .
+# Run with  : docker run -ti gcc-arm-none-eabi-10.3-2021.10-nano_eh-build
 FROM ubuntu:20.04
 
 # Set the locale.
@@ -54,8 +54,8 @@ RUN apt-get update                                      \
 RUN mkdir /tmp/download-images
 
 # Install gcc-arm-none-eabi sources.
-RUN curl -L "https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/gcc-arm-none-eabi-9-2020-q2-update-src.tar.bz2?revision=e2232c7c-4893-46b6-b791-356bdc29fd7f&hash=3F69123275AC9145DC182AD8B283E1F591AEF5A3" \
-         -o /tmp/download-images/gcc-arm-none-eabi-9-2020-q2-update-src.tar.bz2
+RUN curl -L "https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-src.tar.bz2" \
+         -o /tmp/download-images/gcc-arm-none-eabi-10.3-2021.10-src.tar.bz2
 
 # Set up the gccbuild user.
 COPY fs/home/userhome /home/gccbuild
@@ -81,4 +81,4 @@ WORKDIR /home/gccbuild
 # the MD5 sums, so we embed them in a file called gcc_md5_sums.txt which you
 # can manually verify.
 RUN md5sum -c gcc_md5_sums.txt \
-    && tar xf gcc-arm-none-eabi-9-2020-q2-update-src.tar.bz2
+    && tar xf gcc-arm-none-eabi-10.3-2021.10-src.tar.bz2

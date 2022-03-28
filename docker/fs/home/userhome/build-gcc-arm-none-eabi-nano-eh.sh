@@ -16,8 +16,7 @@
 # The unpatched build-toolchain.sh script takes around 63 minutes to run on my
 # M1 Max Macbook Pro while the patched version takes around 74 minutes.  The
 # patched version takes 273 minutes to build on my 3.3 GHz 2016 MacBook Pro.
-GCC_VERSION=gcc-arm-none-eabi-9-2020-q2-update
-RELEASE_DATE=20200408
+GCC_VERSION=gcc-arm-none-eabi-10.3-2021.10
 TGT_SUFFIXES=(aarch64-linux.tar.bz2 x86_64-linux.tar.bz2 src.tar)
 
 # Exit when any command fails.
@@ -30,8 +29,8 @@ patch -p1 < ~/patches/$GCC_VERSION-src.patch
 patch -p1 < ~/patches/gcc-libgloss-nano_eh-specs.patch
 
 # Build it all.
-time ./build-prerequisites.sh --skip_steps=mingw32,howto --release_date=$RELEASE_DATE
-time ./build-toolchain.sh --skip_steps=mingw32,howto,manual --release_date=$RELEASE_DATE
+time ./build-prerequisites.sh --skip_steps=mingw32,howto
+time ./build-toolchain.sh --skip_steps=mingw32,howto,manual
 
 # Link and move final build products into place.
 cd && ln -s $GCC_VERSION/pkg
