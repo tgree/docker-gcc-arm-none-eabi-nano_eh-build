@@ -16,8 +16,8 @@
 # The unpatched build-toolchain.sh script takes around 63 minutes to run on my
 # M1 Max Macbook Pro while the patched version takes around 74 minutes.  The
 # patched version takes 273 minutes to build on my 3.3 GHz 2016 MacBook Pro.
-GCC_VERSION=gcc-arm-none-eabi-9-2019-q4-major
-RELEASE_DATE=20191025
+GCC_VERSION=gcc-arm-none-eabi-9-2020-q2-update
+RELEASE_DATE=20200408
 TGT_SUFFIXES=(aarch64-linux.tar.bz2 x86_64-linux.tar.bz2 src.tar)
 
 # Exit when any command fails.

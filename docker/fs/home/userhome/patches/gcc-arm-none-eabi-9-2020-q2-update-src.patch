@@ -1,0 +1,164 @@
+diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-common.sh gcc-arm-none-eabi-9-2020-q2-update/build-common.sh
+--- gcc-arm-none-eabi-9-2020-q2-update-orig/build-common.sh	2020-05-21 12:33:54.000000000 +0000
++++ gcc-arm-none-eabi-9-2020-q2-update/build-common.sh	2022-03-27 10:45:05.477365001 +0000
+@@ -199,7 +199,7 @@
+ }
+ 
+ # Copy target libraries from each multilib directories.
+-# Usage copy_multi_libs dst_prefix=... src_prefix=... target_gcc=...
++# Usage copy_multi_libs dst_prefix=... dst_suffix=... src_prefix=... target_gcc=...
+ copy_multi_libs() {
+     local -a multilibs
+     local multilib
+@@ -219,11 +219,11 @@
+         multi_dir="${multilib%%;*}"
+         src_dir=${src_prefix}/${multi_dir}
+         dst_dir=${dst_prefix}/${multi_dir}
+-        cp -f "${src_dir}/libstdc++.a" "${dst_dir}/libstdc++_nano.a"
+-        cp -f "${src_dir}/libsupc++.a" "${dst_dir}/libsupc++_nano.a"
+-        cp -f "${src_dir}/libc.a" "${dst_dir}/libc_nano.a"
+-        cp -f "${src_dir}/libg.a" "${dst_dir}/libg_nano.a"
+-        cp -f "${src_dir}/librdimon.a" "${dst_dir}/librdimon_nano.a"
++        cp -f "${src_dir}/libstdc++.a" "${dst_dir}/libstdc++${dst_suffix}.a"
++        cp -f "${src_dir}/libsupc++.a" "${dst_dir}/libsupc++${dst_suffix}.a"
++        cp -f "${src_dir}/libc.a" "${dst_dir}/libc${dst_suffix}.a"
++        cp -f "${src_dir}/libg.a" "${dst_dir}/libg${dst_suffix}.a"
++        cp -f "${src_dir}/librdimon.a" "${dst_dir}/librdimon${dst_suffix}.a"
+         cp -f "${src_dir}/nano.specs" "${dst_dir}/"
+         cp -f "${src_dir}/rdimon.specs" "${dst_dir}/"
+         cp -f "${src_dir}/nosys.specs" "${dst_dir}/"
+@@ -306,7 +306,7 @@
+     BUILD="$host_arch"-linux-gnu
+     HOST_NATIVE="$host_arch"-linux-gnu
+     READLINK=readlink
+-    JOBS=`grep ^processor /proc/cpuinfo|wc -l`
++    JOBS=$((`grep ^processor /proc/cpuinfo|wc -l` * 2))
+     GCC_CONFIG_OPTS_LCPP="--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm"
+     MD5="md5sum -b"
+     PACKAGE_NAME_SUFFIX="${host_arch}-linux"
+@@ -338,8 +338,15 @@
+ SCRIPT=$(basename $0)
+ 
+ RELEASEDATE=$(date +%Y%m%d)
+-release_year=$(date +%Y)
+-release_month=$(date +%m)
++for ac_arg; do
++    case $ac_arg in
++        --release_date=*)
++            RELEASEDATE=$(echo $ac_arg | sed -e "s/--release_date=//g" -e "s/,/ /g")
++            ;;
++    esac
++done
++release_year=${RELEASEDATE:0:4}
++release_month=${RELEASEDATE:4:2}
+ case $release_month in
+     01|02|03)
+         RELEASEVER=${release_year}-q1-update
+diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-prerequisites.sh gcc-arm-none-eabi-9-2020-q2-update/build-prerequisites.sh
+--- gcc-arm-none-eabi-9-2020-q2-update-orig/build-prerequisites.sh	2020-05-21 12:33:54.000000000 +0000
++++ gcc-arm-none-eabi-9-2020-q2-update/build-prerequisites.sh	2022-03-27 10:42:44.784945006 +0000
+@@ -77,6 +77,8 @@
+         --skip_steps=*)
+             skip_steps=`echo $ac_arg | sed -e "s/--skip_steps=//g" -e "s/,/ /g"`
+             ;;
++        --release_date=*)
++            ;;
+         --help|-h)
+             usage
+             exit 1
+diff -ru gcc-arm-none-eabi-9-2020-q2-update-orig/build-toolchain.sh gcc-arm-none-eabi-9-2020-q2-update/build-toolchain.sh
+--- gcc-arm-none-eabi-9-2020-q2-update-orig/build-toolchain.sh	2020-05-21 12:33:54.000000000 +0000
++++ gcc-arm-none-eabi-9-2020-q2-update/build-toolchain.sh	2022-03-27 10:49:38.471153002 +0000
+@@ -97,6 +97,7 @@
+ skip_package_sources=no
+ skip_md5_checksum=no
+ skip_steps=
++release_date=
+ skip_gdb_with_python=no
+ skip_mingw32_gdb_with_python=no
+ skip_native_build=no
+@@ -116,6 +117,8 @@
+         --with-multilib-list=*)
+             MULTILIB_LIST="--with-multilib-list=${ac_arg##*=}"
+             ;;
++        --release_date=*)
++            ;;
+         *)
+             usage
+             exit 1
+@@ -509,6 +512,7 @@
+ 
+     copy_multi_libs src_prefix="$BUILDDIR_NATIVE/target-libs/arm-none-eabi/lib" \
+                     dst_prefix="$INSTALLDIR_NATIVE/arm-none-eabi/lib"           \
++                    dst_suffix="_nano"                                          \
+                     target_gcc="$BUILDDIR_NATIVE/target-libs/bin/arm-none-eabi-gcc"
+ 
+     # Copy the nano configured newlib.h file into the location that nano.specs
+@@ -519,6 +523,49 @@
+ 
+     popd
+ 
++    echo Task [III-5.1] /$HOST_NATIVE/gcc-size-eh-libstdcxx/ | tee -a "$BUILDDIR_NATIVE/.stage"
++    rm -f $BUILDDIR_NATIVE/target-libs/arm-none-eabi/usr
++    ln -s . $BUILDDIR_NATIVE/target-libs/arm-none-eabi/usr
++    
++    rm -rf $BUILDDIR_NATIVE/gcc-size-eh-libstdcxx && mkdir -p $BUILDDIR_NATIVE/gcc-size-eh-libstdcxx
++    pushd $BUILDDIR_NATIVE/gcc-size-eh-libstdcxx
++    
++    $SRCDIR/$GCC/configure --target=$TARGET \
++        --prefix=$BUILDDIR_NATIVE/target-libs \
++        --enable-languages=c,c++ \
++        --disable-decimal-float \
++        --disable-libffi \
++        --disable-libgomp \
++        --disable-libmudflap \
++        --disable-libquadmath \
++        --disable-libssp \
++        --disable-libstdcxx-pch \
++        --disable-libstdcxx-verbose \
++        --disable-nls \
++        --disable-shared \
++        --disable-threads \
++        --disable-tls \
++        --with-gnu-as \
++        --with-gnu-ld \
++        --with-newlib \
++        --with-headers=yes \
++        --with-python-dir=share/gcc-arm-none-eabi \
++        --with-sysroot=$BUILDDIR_NATIVE/target-libs/arm-none-eabi \
++        $GCC_CONFIG_OPTS \
++        "${GCC_CONFIG_OPTS_LCPP}"                              \
++        "--with-pkgversion=$PKGVERSION" \
++        ${MULTILIB_LIST}
++    
++    make -j$JOBS CCXXFLAGS="$BUILD_OPTIONS" CXXFLAGS_FOR_TARGET="-g -Os -ffunction-sections -fdata-sections"
++    make install
++    
++    copy_multi_libs src_prefix="$BUILDDIR_NATIVE/target-libs/arm-none-eabi/lib" \
++                    dst_prefix="$INSTALLDIR_NATIVE/arm-none-eabi/lib"           \
++                    dst_suffix="_nano_eh" \
++                    target_gcc="$BUILDDIR_NATIVE/target-libs/bin/arm-none-eabi-gcc"
++    
++    popd
++    
+     echo Task [III-6] /$HOST_NATIVE/gdb/ | tee -a "$BUILDDIR_NATIVE/.stage"
+     build_gdb()
+     {
+@@ -993,7 +1040,7 @@
+         cp "$script_path/build.sh" "$PACKAGE_NAME/"
+     fi
+ 
+-    tar cf "$PACKAGE_NAME-src.tar.bz2" "$PACKAGE_NAME" ${TAR_FLAGS:-}
++    tar cf "$PACKAGE_NAME-src.tar" "$PACKAGE_NAME" ${TAR_FLAGS:-}
+     rm -rf "$PACKAGE_NAME"
+     popd
+ fi
+@@ -1011,7 +1058,7 @@
+     fi
+ 
+     if [ "x$skip_package_sources" != "xyes" ]; then
+-        $MD5 "$PACKAGE_NAME-src.tar.bz2" >> "$MD5_CHECKSUM_FILE"
++        $MD5 "$PACKAGE_NAME-src.tar" >> "$MD5_CHECKSUM_FILE"
+     fi
+     popd
+ fi

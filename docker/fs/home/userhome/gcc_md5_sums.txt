@@ -1,1 +1,1 @@
-dec65fe8c14aae90512310dd5fe88bf1  gcc-arm-none-eabi-9-2019-q4-major-src.tar.bz2
+50729355f3fa20d4dc26ef41b85acf69  gcc-arm-none-eabi-9-2020-q2-update-src.tar.bz2
